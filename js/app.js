@@ -30,6 +30,31 @@ function clearSession() {
 }
 
 /* =============================================
+   LOGO SVG
+   ============================================= */
+function logoSVG(size = 32) {
+  const r = Math.round(size * 0.28);
+  return `<svg class="logo-icon" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="nexG${size}" x1="0" y1="0" x2="${size}" y2="${size}" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#c084fc"/>
+        <stop offset="55%" stop-color="#9333ea"/>
+        <stop offset="100%" stop-color="#6d28d9"/>
+      </linearGradient>
+      <filter id="nexGlow${size}" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="1.5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <rect width="${size}" height="${size}" rx="${r}" fill="url(#nexG${size})"/>
+    <rect x="${size*.19}" y="${size*.25}" width="${size*.125}" height="${size*.5}" fill="white"/>
+    <rect x="${size*.6875}" y="${size*.25}" width="${size*.125}" height="${size*.5}" fill="white"/>
+    <polygon points="${size*.3125},${size*.25} ${size*.46},${size*.25} ${size*.6875},${size*.75} ${size*.54},${size*.75}" fill="white"/>
+    <ellipse cx="${size*.68}" cy="${size*.27}" rx="${size*.075}" ry="${size*.075}" fill="#f0abfc" opacity="0.9"/>
+  </svg>`;
+}
+
+/* =============================================
    NOTIFICATIONS
    ============================================= */
 let notifTimer = null;
@@ -134,7 +159,7 @@ function renderLogin() {
   return `
   <div class="auth-page fade-in">
     <div class="auth-left">
-      <div class="logo">Ne<span>x</span>ora</div>
+      <div class="logo">${logoSVG(44)}<span style="color:#fff">Ne<span>x</span>ora</span></div>
       <h1>Aprenda sem limites.<br>Ensine com impacto.</h1>
       <p>A plataforma completa para cursos online. Acesse milhares de conteúdos ou crie seu próprio curso e transforme vidas.</p>
       <div class="auth-features">
@@ -189,7 +214,7 @@ function renderRegister() {
   return `
   <div class="auth-page fade-in">
     <div class="auth-left">
-      <div class="logo">Ne<span>x</span>ora</div>
+      <div class="logo">${logoSVG(44)}<span style="color:#fff">Ne<span>x</span>ora</span></div>
       <h1>Comece sua jornada hoje.</h1>
       <p>Junte-se a milhares de alunos e professores na maior plataforma de educação online do Brasil.</p>
       <div class="auth-features">
@@ -318,7 +343,7 @@ function renderStudentLayout(app) {
   <div class="app-layout fade-in">
     ${!isLesson ? `
     <aside class="sidebar">
-      <div class="sidebar-logo">Ne<span>x</span>ora</div>
+      <div class="sidebar-logo">${logoSVG(32)}<span>Ne<span>x</span>ora</span></div>
       <div class="sidebar-section">
         <div class="sidebar-section-label">Navegação</div>
         <nav class="sidebar-nav">
@@ -801,7 +826,7 @@ function renderTeacherLayout(app) {
   app.innerHTML = `
   <div class="app-layout fade-in">
     <aside class="sidebar">
-      <div class="sidebar-logo">Ne<span>x</span>ora <span style="font-size:11px;background:var(--accent);color:#fff;padding:2px 7px;border-radius:99px;font-weight:700;vertical-align:middle">PRO</span></div>
+      <div class="sidebar-logo">${logoSVG(32)}<span>Ne<span>x</span>ora</span><span style="font-size:10px;background:linear-gradient(135deg,#a855f7,#e879f9);color:#fff;padding:2px 8px;border-radius:99px;font-weight:700;margin-left:2px">PRO</span></div>
       <div class="sidebar-section">
         <div class="sidebar-section-label">Painel do Professor</div>
         <nav class="sidebar-nav">
