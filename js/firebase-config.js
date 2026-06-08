@@ -17,12 +17,12 @@
    ============================================= */
 
 const firebaseConfig = {
-  apiKey:            "COLE_AQUI",
-  authDomain:        "COLE_AQUI",
-  projectId:         "COLE_AQUI",
-  storageBucket:     "COLE_AQUI",
-  messagingSenderId: "COLE_AQUI",
-  appId:             "COLE_AQUI"
+  apiKey:            "AIzaSyCZcocm_cqMSX-pMYQ8_e6no_s8usXVGXc",
+  authDomain:        "nexora-db-148dc.firebaseapp.com",
+  projectId:         "nexora-db-148dc",
+  storageBucket:     "nexora-db-148dc.firebasestorage.app",
+  messagingSenderId: "979392892706",
+  appId:             "1:979392892706:web:ad2bf216f05eb2cc189f7b"
 };
 
 /* ── Inicialização ────────────────────────────────────────────
