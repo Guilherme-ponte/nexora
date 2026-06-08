@@ -1,5 +1,6 @@
 /* =============================================
    NEXORA — Data & State Management
+   Suporte a Firebase Firestore + localStorage
    ============================================= */
 
 const STORAGE_KEY = 'nexora_db';
@@ -173,7 +174,7 @@ const DEFAULT_DATA = {
   completedLessons: []
 };
 
-/* --- Storage helpers --- */
+/* ── localStorage helpers ────────────────────────────────────── */
 function loadDB() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -194,7 +195,7 @@ function resetDB() {
 
 let DB = loadDB();
 
-/* --- User helpers --- */
+/* ── User helpers ─────────────────────────────────────────────── */
 function findUser(email, password) {
   return DB.users.find(u => u.email === email && u.password === password) || null;
 }
@@ -210,6 +211,7 @@ function createUser(name, email, password, role) {
   };
   DB.users.push(user);
   saveDB(DB);
+  _fsSet('users', user.id, user);          // ← Firestore
   return user;
 }
 
@@ -218,10 +220,11 @@ function updateUser(id, data) {
   if (idx === -1) return null;
   DB.users[idx] = { ...DB.users[idx], ...data };
   saveDB(DB);
+  _fsSet('users', id, DB.users[idx]);      // ← Firestore
   return DB.users[idx];
 }
 
-/* --- Course helpers --- */
+/* ── Course helpers ───────────────────────────────────────────── */
 function getCourses() { return DB.courses; }
 
 function getCourseById(id) { return DB.courses.find(c => c.id === id) || null; }
@@ -240,24 +243,31 @@ function createCourse(data) {
   };
   DB.courses.push(course);
   saveDB(DB);
+  _fsSet('courses', course.id, course);    // ← Firestore
   return course;
 }
 
 function updateCourse(id, data) {
   const idx = DB.courses.findIndex(c => c.id === id);
   if (idx === -1) return null;
-  DB.courses[idx] = { ...DB.courses[idx], ...data, lessonsCount: data.lessons ? data.lessons.length : DB.courses[idx].lessonsCount };
+  DB.courses[idx] = {
+    ...DB.courses[idx], ...data,
+    lessonsCount: data.lessons ? data.lessons.length : DB.courses[idx].lessonsCount
+  };
   saveDB(DB);
+  _fsSet('courses', id, DB.courses[idx]);  // ← Firestore
   return DB.courses[idx];
 }
 
 function deleteCourse(id) {
-  DB.courses = DB.courses.filter(c => c.id !== id);
+  DB.courses     = DB.courses.filter(c => c.id !== id);
   DB.enrollments = DB.enrollments.filter(e => e.courseId !== id);
   saveDB(DB);
+  _fsDel('courses', id);                   // ← Firestore
+  _fsDelEnrollmentsByCourse(id);           // ← Firestore (matrículas do curso)
 }
 
-/* --- Enrollment helpers --- */
+/* ── Enrollment helpers ───────────────────────────────────────── */
 function getEnrollmentsByUser(userId) {
   return DB.enrollments.filter(e => e.userId === userId);
 }
@@ -272,10 +282,16 @@ function isEnrolled(userId, courseId) {
 
 function enroll(userId, courseId) {
   if (isEnrolled(userId, courseId)) return;
-  DB.enrollments.push({ userId, courseId, enrolledAt: new Date().toISOString().split('T')[0], progress: 0 });
+  const enrollment = {
+    userId, courseId,
+    enrolledAt: new Date().toISOString().split('T')[0],
+    progress: 0
+  };
+  DB.enrollments.push(enrollment);
   const course = getCourseById(courseId);
   if (course) { course.studentsCount = (course.studentsCount || 0) + 1; }
   saveDB(DB);
+  _fsSet('enrollments', `${userId}_${courseId}`, enrollment);  // ← Firestore
 }
 
 function updateProgress(userId, courseId, progress) {
@@ -283,6 +299,7 @@ function updateProgress(userId, courseId, progress) {
   if (enrollment) {
     enrollment.progress = progress;
     saveDB(DB);
+    _fsSet('enrollments', `${userId}_${courseId}`, enrollment); // ← Firestore
   }
 }
 
@@ -290,14 +307,16 @@ function markLessonComplete(userId, courseId, lessonId) {
   const key = `${userId}_${courseId}_${lessonId}`;
   if (!DB.completedLessons.includes(key)) {
     DB.completedLessons.push(key);
-    // recalculate progress
     const course = getCourseById(courseId);
     if (course) {
       const total = course.lessons.length;
-      const done = course.lessons.filter(l => DB.completedLessons.includes(`${userId}_${courseId}_${l.id}`)).length;
+      const done  = course.lessons.filter(l =>
+        DB.completedLessons.includes(`${userId}_${courseId}_${l.id}`)
+      ).length;
       updateProgress(userId, courseId, Math.round((done / total) * 100));
     }
     saveDB(DB);
+    _fsSet('completedLessons', key, { userId, courseId, lessonId }); // ← Firestore
   }
 }
 
@@ -305,7 +324,7 @@ function isLessonComplete(userId, courseId, lessonId) {
   return DB.completedLessons.includes(`${userId}_${courseId}_${lessonId}`);
 }
 
-/* --- Stats helpers --- */
+/* ── Stats helpers ────────────────────────────────────────────── */
 function getTeacherStats(teacherId) {
   const courses = getCoursesByTeacher(teacherId);
   const courseIds = courses.map(c => c.id);
@@ -320,8 +339,8 @@ function getTeacherStats(teacherId) {
 
 function getStudentStats(userId) {
   const enrollments = getEnrollmentsByUser(userId);
-  const completed = enrollments.filter(e => e.progress === 100).length;
-  const inProgress = enrollments.filter(e => e.progress > 0 && e.progress < 100).length;
+  const completed   = enrollments.filter(e => e.progress === 100).length;
+  const inProgress  = enrollments.filter(e => e.progress > 0 && e.progress < 100).length;
   return { total: enrollments.length, completed, inProgress };
 }
 
@@ -330,12 +349,120 @@ function getAllStudents() {
 }
 
 function getTeacherStudentsData(teacherId) {
-  const courses = getCoursesByTeacher(teacherId);
+  const courses   = getCoursesByTeacher(teacherId);
   const courseIds = courses.map(c => c.id);
   const enrollments = DB.enrollments.filter(e => courseIds.includes(e.courseId));
   return enrollments.map(e => {
-    const user = DB.users.find(u => u.id === e.userId);
+    const user   = DB.users.find(u => u.id === e.userId);
     const course = getCourseById(e.courseId);
     return { ...e, userName: user?.name, userEmail: user?.email, userColor: user?.color, courseName: course?.title };
   });
+}
+
+/* =============================================
+   FIRESTORE INTEGRATION
+   Sincroniza com o Firebase Firestore quando
+   a configuração em firebase-config.js estiver
+   preenchida. Caso contrário, usa só localStorage.
+   ============================================= */
+
+let _firestoreReady = false;
+
+/** Carrega todos os dados do Firestore para o DB em memória */
+async function initFirestore() {
+  if (!window._nexoraFirestoreReady || !window.firestoreDB) {
+    return; // Firebase não configurado — usa localStorage normalmente
+  }
+
+  const fdb = window.firestoreDB;
+
+  try {
+    console.log('[Nexora] Carregando dados do Firestore...');
+
+    const [usersSnap, coursesSnap, enrollSnap, lessonsSnap] = await Promise.all([
+      fdb.collection('users').get(),
+      fdb.collection('courses').get(),
+      fdb.collection('enrollments').get(),
+      fdb.collection('completedLessons').get()
+    ]);
+
+    if (coursesSnap.empty) {
+      // Primeira vez: popula o Firestore com os dados padrão
+      console.log('[Nexora] Banco vazio — populando Firestore...');
+      await _seedFirestore(fdb);
+    } else {
+      // Carrega para a memória
+      DB.users            = usersSnap.docs.map(d => d.data());
+      DB.courses          = coursesSnap.docs.map(d => d.data())
+                              .sort((a, b) => Number(a.id) - Number(b.id));
+      DB.enrollments      = enrollSnap.docs.map(d => d.data());
+      DB.completedLessons = lessonsSnap.docs.map(d => d.id);
+      saveDB(DB); // Sincroniza localStorage também
+      console.log(`[Nexora] Firestore OK — ${DB.courses.length} cursos, ${DB.users.length} usuários`);
+    }
+
+    _firestoreReady = true;
+
+  } catch (e) {
+    console.error('[Nexora] Erro no Firestore, usando localStorage:', e.message);
+    // DB já foi carregado do localStorage via loadDB() — sem problema
+  }
+}
+
+/** Popula o Firestore com os dados padrão (primeira execução) */
+async function _seedFirestore(fdb) {
+  // Firestore permite no máximo 500 operações por batch
+  const batch1 = fdb.batch();
+
+  DEFAULT_DATA.users.forEach(u => {
+    batch1.set(fdb.collection('users').doc(String(u.id)), u);
+  });
+  DEFAULT_DATA.courses.forEach(c => {
+    batch1.set(fdb.collection('courses').doc(String(c.id)), c);
+  });
+  DEFAULT_DATA.enrollments.forEach(e => {
+    batch1.set(fdb.collection('enrollments').doc(`${e.userId}_${e.courseId}`), e);
+  });
+
+  await batch1.commit();
+  DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  saveDB(DB);
+  _firestoreReady = true;
+  console.log('[Nexora] Firestore populado com sucesso!');
+}
+
+/** Escreve/atualiza um documento no Firestore (fire-and-forget) */
+function _fsSet(collection, id, data) {
+  if (!_firestoreReady || !window.firestoreDB) return;
+  window.firestoreDB
+    .collection(collection)
+    .doc(String(id))
+    .set(data, { merge: true })
+    .catch(e => console.error(`[Nexora] Firestore write error [${collection}/${id}]:`, e.message));
+}
+
+/** Remove um documento do Firestore (fire-and-forget) */
+function _fsDel(collection, id) {
+  if (!_firestoreReady || !window.firestoreDB) return;
+  window.firestoreDB
+    .collection(collection)
+    .doc(String(id))
+    .delete()
+    .catch(e => console.error(`[Nexora] Firestore delete error [${collection}/${id}]:`, e.message));
+}
+
+/** Remove todas as matrículas de um curso do Firestore */
+function _fsDelEnrollmentsByCourse(courseId) {
+  if (!_firestoreReady || !window.firestoreDB) return;
+  window.firestoreDB
+    .collection('enrollments')
+    .where('courseId', '==', courseId)
+    .get()
+    .then(snap => {
+      if (snap.empty) return;
+      const batch = window.firestoreDB.batch();
+      snap.docs.forEach(doc => batch.delete(doc.ref));
+      return batch.commit();
+    })
+    .catch(e => console.error('[Nexora] Erro ao deletar matrículas:', e.message));
 }

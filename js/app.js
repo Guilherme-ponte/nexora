@@ -1524,7 +1524,48 @@ function logout() {
 }
 
 /* =============================================
+   LOADING SCREEN
+   ============================================= */
+function renderLoadingScreen() {
+  return `
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#13002b 0%,#3b0764 50%,#7c3aed 100%)">
+    <div style="text-align:center;color:white">
+      ${logoSVG(64)}
+      <h2 style="margin:20px 0 6px;font-size:22px;font-weight:700;letter-spacing:-.5px">Nexora</h2>
+      <p style="color:rgba(255,255,255,.55);font-size:14px;margin-bottom:28px">
+        Conectando ao banco de dados...
+      </p>
+      <div style="
+        width:40px;height:40px;margin:0 auto;
+        border:3px solid rgba(255,255,255,.18);
+        border-top-color:#e879f9;
+        border-radius:50%;
+        animation:nx-spin .9s linear infinite">
+      </div>
+    </div>
+  </div>
+  <style>
+    @keyframes nx-spin { to { transform: rotate(360deg); } }
+  </style>`;
+}
+
+/* =============================================
    INIT
    ============================================= */
-loadSession();
-render();
+async function initApp() {
+  // Mostra tela de loading enquanto o Firestore carrega
+  document.getElementById('app').innerHTML = renderLoadingScreen();
+
+  // Restaura sessão do usuário (sessionStorage)
+  loadSession();
+
+  // Tenta carregar dados do Firestore (se configurado)
+  // Caso não esteja configurado, usa localStorage normalmente
+  await initFirestore();
+
+  // Renderiza o app
+  render();
+}
+
+initApp();
