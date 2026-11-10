@@ -90,6 +90,7 @@ function navigate(view, params = {}) {
   if (params.courseId !== undefined) currentCourseId = params.courseId;
   if (params.lessonId !== undefined) currentLessonId = params.lessonId;
   currentView = view;
+  document.body.classList.remove('menu-open');
   render();
   window.scrollTo(0, 0);
 }
@@ -178,6 +179,7 @@ function renderLogin() {
       </div>
     </div>
     <div class="auth-right">
+      <div class="auth-mobile-logo" aria-hidden="true">${logoSVG(36)}<span>Ne<span>x</span>ora</span></div>
       <h2>Bem-vindo de volta!</h2>
       <p class="subtitle">Faça login para continuar aprendendo</p>
 
@@ -233,6 +235,7 @@ function renderRegister() {
       </div>
     </div>
     <div class="auth-right">
+      <div class="auth-mobile-logo" aria-hidden="true">${logoSVG(36)}<span>Ne<span>x</span>ora</span></div>
       <h2>Crie sua conta</h2>
       <p class="subtitle">Rápido, fácil e gratuito</p>
 
@@ -342,7 +345,8 @@ function renderStudentLayout(app) {
   app.innerHTML = `
   <div class="app-layout fade-in">
     ${!isLesson ? `
-    <aside class="sidebar">
+    <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
+    <aside class="sidebar" id="sidebar" aria-label="Menu principal">
       <div class="sidebar-logo">${logoSVG(32)}<span>Ne<span>x</span>ora</span></div>
       <div class="sidebar-section">
         <div class="sidebar-section-label">Navegação</div>
@@ -369,6 +373,7 @@ function renderStudentLayout(app) {
     <div class="main-content" style="${isLesson ? '' : ''}">
       ${!isLesson ? `
       <header class="topbar">
+        <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">☰</button>
         <div class="topbar-title">${getStudentPageTitle()}</div>
         <div class="topbar-actions">
           <div class="topbar-search">
@@ -680,9 +685,9 @@ function renderLessonViewer() {
 
   return `
   <div style="display:flex;flex-direction:column;min-height:100vh">
-    <div style="background:var(--sidebar-bg);padding:12px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid rgba(255,255,255,.1)">
+    <div class="lesson-topbar" style="background:var(--sidebar-bg);padding:12px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid rgba(255,255,255,.1)">
       <button class="btn btn-ghost" style="color:rgba(255,255,255,.7)" onclick="navigate('student/my-courses')">← Voltar</button>
-      <span style="color:rgba(255,255,255,.8);font-size:14px;font-weight:600">${course.title}</span>
+      <span class="lesson-topbar-title" style="color:rgba(255,255,255,.8);font-size:14px;font-weight:600">${course.title}</span>
       <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
         <div style="background:rgba(255,255,255,.1);border-radius:99px;height:6px;width:120px">
           <div style="background:var(--primary);height:100%;border-radius:99px;width:${getEnrollmentsByUser(currentUser.id).find(e=>e.courseId===course.id)?.progress||0}%"></div>
@@ -825,7 +830,8 @@ function renderTeacherLayout(app) {
 
   app.innerHTML = `
   <div class="app-layout fade-in">
-    <aside class="sidebar">
+    <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
+    <aside class="sidebar" id="sidebar" aria-label="Menu principal">
       <div class="sidebar-logo">${logoSVG(32)}<span>Ne<span>x</span>ora</span><span style="font-size:10px;background:linear-gradient(135deg,#a855f7,#e879f9);color:#fff;padding:2px 8px;border-radius:99px;font-weight:700;margin-left:2px">PRO</span></div>
       <div class="sidebar-section">
         <div class="sidebar-section-label">Painel do Professor</div>
@@ -860,6 +866,7 @@ function renderTeacherLayout(app) {
     </aside>
     <div class="main-content">
       <header class="topbar">
+        <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">☰</button>
         <div class="topbar-title">${getTeacherPageTitle()}</div>
         <div class="topbar-actions">
           <button class="btn btn-accent" onclick="openCreateCourse()">➕ Novo Curso</button>
@@ -1549,6 +1556,31 @@ function renderLoadingScreen() {
     @keyframes nx-spin { to { transform: rotate(360deg); } }
   </style>`;
 }
+
+/* =============================================
+   MOBILE MENU
+   ============================================= */
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  const open = !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', open);
+  document.body.classList.toggle('menu-open', open);
+  const btn = document.getElementById('menu-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+  }
+}
+
+function closeSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar && sidebar.classList.contains('open')) toggleSidebar();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeSidebar(); }
+});
 
 /* =============================================
    INIT
